@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catch the Stars!</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #1a1a2e;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    #game-container {
+      position: relative;
+      width: 400px;
+      height: 500px;
+      background: linear-gradient(to bottom, #16213e, #0f3460);
+      border: 4px solid #e94560;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    #scoreboard {
+      position: absolute;
+      top: 10px;
+      left: 15px;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 10;
+    }
+
+    #basket {
+      position: absolute;
+      bottom: 10px;
+      left: 170px;
+      width: 60px;
+      height: 20px;
+      background-color: #e94560;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #e94560;
+    }
+
+    .star {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: #f9d342;
+      clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    }
+
+    #game-over-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 52, 96, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin-bottom: 20px;
+      font-size: 18px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #e94560;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background-color: #ff6b81;
+    }
+
+    .instructions {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #a0a0a0;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <div id="scoreboard">
+      <div>Score: <span id="score">0</span></div>
+      <div>Lives: <span id="lives">3</span></div>
+    </div>
+
+    <div id="basket"></div>
+
+    <div id="game-over-screen">
+      <h1>Catch the Stars!</h1>
+      <p id="final-score-text">Move the basket to catch as many falling stars as you can.</p>
+      <button id="start-btn">Play Game</button>
+      <div class="instructions">Use Left/Right Arrow keys or Mouse</div>
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('game-container');
+    const basket = document.getElementById('basket');
+    const scoreDisplay = document.getElementById('score');
+    const livesDisplay = document.getElementById('lives');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const startBtn = document.getElementById('start-btn');
+    const finalScoreText = document.getElementById('final-score-text');
+
+    const containerWidth = 400;
+    const containerHeight = 500;
+    const basketWidth = 60;
+    const starSize = 20;
+
+    let score = 0;
+    let lives = 3;
+    let basketX = 170;
+    let stars = [];
+    let gameInterval;
+    let spawnInterval;
+    let isPlaying = false;
+    let keys = {};
+
+    // Controls
+    window.addEventListener('keydown', (e) => keys[e.key] = true);
+    window.addEventListener('keyup', (e) => keys[e.key] = false);
+
+    container.addEventListener('mousemove', (e) => {
+      if (!isPlaying) return;
+      const rect = container.getBoundingClientRect();
+      let mouseX = e.clientX - rect.left - basketWidth / 2;
+      basketX = Math.max(0, Math.min(containerWidth - basketWidth, mouseX));
+      basket.style.left = basketX + 'px';
+    });
+
+    function spawnStar() {
+      const starEl = document.createElement('div');
+      starEl.classList.add('star');
+      const x = Math.random() * (containerWidth - starSize);
+      starEl.style.left = x + 'px';
+      starEl.style.top = '0px';
+      container.appendChild(starEl);
+
+      stars.push({
+        element: starEl,
+        x: x,
+        y: 0,
+        speed: 3 + Math.random() * 2 + score * 0.1 // Gradually speeds up
+      });
+    }
+
+    function updateGame() {
+      // Keyboard input
+      if (keys['ArrowLeft'] && basketX > 0) {
+        basketX -= 6;
+      }
+      if (keys['ArrowRight'] && basketX < containerWidth - basketWidth) {
+        basketX += 6;
+      }
+      basket.style.left = basketX + 'px';
+
+      // Update falling stars
+      for (let i = stars.length - 1; i >= 0; i--) {
+        let star = stars[i];
+        star.y += star.speed;
+        star.element.style.top = star.y + 'px';
+
+        // Collision with basket
+        if (
+          star.y + starSize >= containerHeight - 30 &&
+          star.y + starSize <= containerHeight - 10 &&
+          star.x + starSize >= basketX &&
+          star.x <= basketX + basketWidth
+        ) {
+          score += 10;
+          scoreDisplay.textContent = score;
+          star.element.remove();
+          stars.splice(i, 1);
+          continue;
+        }
+
+        // Missed star
+        if (star.y >= containerHeight) {
+          lives -= 1;
+          livesDisplay.textContent = lives;
+          star.element.remove();
+          stars.splice(i, 1);
+
+          if (lives <= 0) {
+            endGame();
+          }
+        }
+      }
+    }
+
+    function startGame() {
+      // Reset state
+      score = 0;
+      lives = 3;
+      basketX = (containerWidth - basketWidth) / 2;
+      scoreDisplay.textContent = score;
+      livesDisplay.textContent = lives;
+      basket.style.left = basketX + 'px';
+
+      // Clear existing stars
+      stars.forEach(star => star.element.remove());
+      stars = [];
+
+      gameOverScreen.classList.add('hidden');
+      isPlaying = true;
+
+      // Loops
+      gameInterval = setInterval(updateGame, 1000 / 60);
+      spawnInterval = setInterval(spawnStar, 1000);
+    }
+
+    function endGame() {
+      isPlaying = false;
+      clearInterval(gameInterval);
+      clearInterval(spawnInterval);
+      finalScoreText.textContent = `Game Over! Your score: ${score}`;
+      startBtn.textContent = 'Play Again';
+      gameOverScreen.classList.remove('hidden');
+    }
+
+    startBtn.addEventListener('click', startGame);
+  </script>
+</body>
+</html>
